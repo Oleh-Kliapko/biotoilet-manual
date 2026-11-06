@@ -168,11 +168,10 @@ footer{padding:24px 0 48px;color:var(--muted);font-size:14px}
 <div class="cover" id="cover" role="dialog" aria-modal="true" aria-labelledby="coverTitle">
   <div class="cover-inner">
     <h2 id="coverTitle">Паспорт трону</h2>
-    <p class="cover-text">Персональна інструкція для Максима. Читати рекомендовано під саундтрек — пісня гратиме, поки ти на сторінці.</p>
+    <p class="cover-text">Персональна інструкція для Максима. З саундтреком.</p>
     <div class="tv-slot" id="coverSlot"></div>
     <div class="cover-actions">
-      <button class="done" id="startMusic" type="button">Увімкнути саундтрек</button>
-      <button class="cover-skip" id="skip" type="button">Читати без звуку</button>
+      <button class="done" id="startMusic" type="button">Відкрити паспорт трону</button>
     </div>
     <p class="cover-note" id="coverNote" aria-live="polite"></p>
   </div>
@@ -274,8 +273,9 @@ footer{padding:24px 0 48px;color:var(--muted);font-size:14px}
 const VIDEOS=['HZhmu0Yl714','YQGwotWqeoA'];
 const tv=document.getElementById('tv'),cover=document.getElementById('cover'),coverSlot=document.getElementById('coverSlot'),
   kSlot=document.getElementById('karaokeSlot'),pill=document.getElementById('musicPill'),note=document.getElementById('coverNote'),
-  startBtn=document.getElementById('startMusic'),skipBtn=document.getElementById('skip');
-let player=null,ready=false,vi=0,mode='cover',playing=false,ducked=false,startTimer=null;
+  startBtn=document.getElementById('startMusic');
+let player=null,ready=false,failed=false,vi=0,mode='cover',playing=false,ducked=false,startTimer=null;
+function audible(){return player&&player.getPlayerState()===1&&!player.isMuted();}
 function place(){
   const slot=mode==='cover'?coverSlot:kSlot;const r=slot.getBoundingClientRect();
   if(mode==='cover'){tv.style.position='fixed';tv.style.top=r.top+'px';tv.style.left=r.left+'px';}
@@ -290,7 +290,7 @@ function closeCover(){
 }
 function updatePill(){pill.textContent=playing?'❚❚ Пауза музики':'♪ Увімкнути музику';}
 function onState(e){
-  if(e.data===1){playing=true;clearTimeout(startTimer);note.textContent='';if(mode==='cover')setTimeout(closeCover,600);}
+  if(e.data===1){playing=true;if(!player.isMuted()){clearTimeout(startTimer);note.textContent='';if(mode==='cover')setTimeout(closeCover,500);}}
   else if(e.data===2){playing=false;}
   else if(e.data===0){player.seekTo(0,true);player.playVideo();}
   updatePill();
@@ -298,21 +298,28 @@ function onState(e){
 function onErr(){
   vi++;
   if(vi<VIDEOS.length){player.cueVideoById(VIDEOS[vi]);}
-  else{note.textContent='Пісню не вдалося завантажити. Інструкцію можна читати й без неї.';tv.style.visibility='hidden';pill.hidden=true;ready=false;}
+  else fail();
 }
 window.onYouTubeIframeAPIReady=function(){
   player=new YT.Player('ytplayer',{videoId:VIDEOS[0],width:'100%',height:'100%',
     playerVars:{playsinline:1,rel:0,modestbranding:1},
-    events:{onReady:()=>{ready=true;place();if(mode==='page')pill.hidden=false;},onStateChange:onState,onError:onErr}});
+    events:{onReady:()=>{ready=true;place();if(mode==='page')pill.hidden=false;tryAutoplay();},onStateChange:onState,onError:onErr}});
 };
-startBtn.addEventListener('click',()=>{
-  if(!ready||!player){note.textContent='Плеєр ще завантажується, зачекайте секунду.';return;}
+function tryAutoplay(){
   player.unMute();player.setVolume(100);player.playVideo();
+  setTimeout(()=>{if(audible())return;if(player.getPlayerState()===1){player.pauseVideo();player.seekTo(0,true);}},1500);
+}
+function fail(){
+  failed=true;ready=false;tv.style.visibility='hidden';pill.hidden=true;
+  note.textContent='Пісня не завантажилась, але інструкція чекає.';startBtn.textContent='Відкрити інструкцію';
+}
+startBtn.addEventListener('click',()=>{
+  if(failed){closeCover();return;}
+  if(!ready||!player){note.textContent='Плеєр ще завантажується, секунду…';return;}
+  player.unMute();player.setVolume(100);if(player.getPlayerState()!==1)player.seekTo(0,true);player.playVideo();
   clearTimeout(startTimer);
-  startTimer=setTimeout(()=>{if(!playing)note.textContent='Браузер не дав увімкнути звук автоматично — натисніть ▶ прямо на екрані.';},1800);
+  startTimer=setTimeout(()=>{if(!audible())note.textContent='Телефон просить ще один дотик — натисни ▶ прямо на екрані.';},1800);
 });
-skipBtn.addEventListener('click',closeCover);
-cover.addEventListener('keydown',e=>{if(e.key==='Escape')closeCover();});
 pill.addEventListener('click',()=>{if(!player)return;if(playing)player.pauseVideo();else{player.unMute();player.playVideo();}});
 window.addEventListener('resize',place);
 cover.addEventListener('scroll',place);
@@ -320,7 +327,7 @@ window.addEventListener('load',place);
 if('ResizeObserver' in window)new ResizeObserver(place).observe(document.body);
 if(document.fonts)document.fonts.ready.then(place);
 place();startBtn.focus();
-setTimeout(()=>{if(!ready&&mode==='cover')note.textContent='Плеєр не завантажився. Можна читати без звуку.';},9000);
+setTimeout(()=>{if(!ready&&!failed&&mode==='cover')fail();},10000);
 (function(){const t=document.createElement('script');t.src='https://www.youtube.com/iframe_api';t.async=true;document.head.appendChild(t);})();
 
 const fb=document.getElementById('flush'),fa=document.getElementById('flushAudio'),fn=document.getElementById('flushNote');
