@@ -84,6 +84,31 @@ table.specs{width:100%;border-collapse:collapse;background:#fff;border:2px solid
 .stage button.flush-btn:disabled{background:var(--signal);opacity:.85}
 .flush-note{color:#AEB8D6;font-size:15px}
 
+.has-cover{overflow:hidden}
+.cover{position:fixed;inset:0;z-index:40;overflow:auto;display:flex;align-items:center;justify-content:center;padding:28px 20px;
+  background:var(--stage);background-image:radial-gradient(ellipse 70% 60% at 50% 0%,rgba(255,200,61,.18),transparent 70%);
+  color:#E9EEFF;transition:opacity .45s ease}
+.cover.closing{opacity:0;pointer-events:none}
+.cover-inner{width:min(600px,100%);text-align:center}
+.cover h2{color:#fff;font-size:clamp(34px,7vw,64px);font-weight:800;line-height:.95;margin:0 0 14px}
+.cover-text{color:#AEB8D6;max-width:30em;margin:0 auto 22px}
+.cover .tv-slot{width:min(560px,100%);margin:0 auto}
+.cover-actions{display:flex;flex-wrap:wrap;gap:14px 22px;justify-content:center;align-items:center;margin-top:26px}
+.cover button.done{box-shadow:5px 5px 0 rgba(255,255,255,.28);border-color:var(--signal)}
+.cover-skip{background:none;border:0;color:#C9D2EC;font:500 16px/1.4 "Golos Text",sans-serif;text-decoration:underline;text-underline-offset:4px;cursor:pointer;padding:10px 4px}
+.cover-skip:hover{color:#fff}
+.cover-note{color:var(--signal);min-height:1.6em;margin:16px 0 0;font-size:15px}
+.tv-slot{aspect-ratio:16/9;min-height:200px;width:100%;border-radius:10px;background:#0B1026}
+.tv-frame{margin:30px 0 0}
+.tv-frame figcaption{color:#AEB8D6;font-size:14px;margin-top:10px}
+.tv{position:fixed;top:-9999px;left:0;width:320px;height:200px;z-index:41;background:#000;border-radius:10px;overflow:hidden;
+  box-shadow:0 0 0 3px #2A3352,0 18px 50px rgba(0,0,0,.45)}
+.tv.in-page{z-index:4}
+.tv iframe,.tv #ytplayer{display:block;width:100%;height:100%;border:0}
+.music-pill{position:fixed;left:16px;bottom:16px;z-index:30;font:600 15px/1 "Golos Text",sans-serif;color:var(--ink);background:var(--signal);
+  border:2px solid var(--ink);border-radius:999px;padding:12px 18px;box-shadow:3px 3px 0 var(--ink);cursor:pointer}
+.music-pill[hidden]{display:none}
+
 .hazard{height:14px;margin-bottom:28px;background:repeating-linear-gradient(-45deg,var(--signal) 0 14px,var(--ink) 14px 28px)}
 .nos{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
 .no{background:#fff;border:1.5px solid var(--ink);border-top:6px solid var(--stop);padding:12px 20px 18px}
@@ -139,7 +164,19 @@ footer{padding:24px 0 48px;color:var(--muted);font-size:14px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
-<body>
+<body class="has-cover">
+<div class="cover" id="cover" role="dialog" aria-modal="true" aria-labelledby="coverTitle">
+  <div class="cover-inner">
+    <h2 id="coverTitle">Паспорт трону</h2>
+    <p class="cover-text">Персональна інструкція для Максима. Читати рекомендовано під саундтрек — пісня гратиме, поки ти на сторінці.</p>
+    <div class="tv-slot" id="coverSlot"></div>
+    <div class="cover-actions">
+      <button class="done" id="startMusic" type="button">Увімкнути саундтрек</button>
+      <button class="cover-skip" id="skip" type="button">Читати без звуку</button>
+    </div>
+    <p class="cover-note" id="coverNote" aria-live="polite"></p>
+  </div>
+</div>
 <div class="wrap">
 <header class="sheet">
   <div class="sheet-grid">
@@ -186,6 +223,10 @@ footer{padding:24px 0 48px;color:var(--muted);font-size:14px}
       <h2 id="karaoke">3. Режим «Караоке»</h2>
       <p class="intro">Головна функція, про яку виробник скромно змовчав.</p>
       <ul class="mic-list"><li>Нижній бак на 20 л працює як природний сабвуфер: баси глибшають, сусіди нервують.</li><li>Клапан вирівнювання тиску компенсує довгі ноти. Тягніть скільки завгодно.</li><li>Мікрофон тримайте в правій руці. Ліва — для драматичних жестів.</li><li>Змив після приспіву замінює оплески.</li><li>Рекомендований репертуар: усе, що Максим співає на корпоративах. Ви знаєте, про що ми.</li></ul>
+      <figure class="tv-frame">
+        <div class="tv-slot" id="karaokeSlot"></div>
+        <figcaption>Караоке-екран: SKYLERR, kavabanga Depo kolibri — «Червоний мак»</figcaption>
+      </figure>
       <div class="flush">
         <button class="done flush-btn" id="flush" type="button">Змити після приспіву</button>
         <span class="flush-note" id="flushNote" aria-live="polite">Увімкніть звук на телефоні</span>
@@ -226,19 +267,74 @@ footer{padding:24px 0 48px;color:var(--muted);font-size:14px}
 
 <footer>Жартівлива сторінка до дня народження Максима від колег. Це не інструкція виробника — справжня лежить у коробці.</footer>
 </div>
+<div class="tv" id="tv"><div id="ytplayer"></div></div>
+<button class="music-pill" id="musicPill" type="button" hidden>♪ Увімкнути музику</button>
 <script>
+
+const VIDEOS=['HZhmu0Yl714','YQGwotWqeoA'];
+const tv=document.getElementById('tv'),cover=document.getElementById('cover'),coverSlot=document.getElementById('coverSlot'),
+  kSlot=document.getElementById('karaokeSlot'),pill=document.getElementById('musicPill'),note=document.getElementById('coverNote'),
+  startBtn=document.getElementById('startMusic'),skipBtn=document.getElementById('skip');
+let player=null,ready=false,vi=0,mode='cover',playing=false,ducked=false,startTimer=null;
+function place(){
+  const slot=mode==='cover'?coverSlot:kSlot;const r=slot.getBoundingClientRect();
+  if(mode==='cover'){tv.style.position='fixed';tv.style.top=r.top+'px';tv.style.left=r.left+'px';}
+  else{tv.style.position='absolute';tv.style.top=(r.top+window.scrollY)+'px';tv.style.left=(r.left+window.scrollX)+'px';}
+  tv.style.width=r.width+'px';tv.style.height=r.height+'px';
+}
+function closeCover(){
+  if(mode!=='cover')return;
+  mode='page';cover.classList.add('closing');document.body.classList.remove('has-cover');tv.classList.add('in-page');
+  place();setTimeout(()=>{cover.hidden=true;},460);
+  if(ready)pill.hidden=false;
+}
+function updatePill(){pill.textContent=playing?'❚❚ Пауза музики':'♪ Увімкнути музику';}
+function onState(e){
+  if(e.data===1){playing=true;clearTimeout(startTimer);note.textContent='';if(mode==='cover')setTimeout(closeCover,600);}
+  else if(e.data===2){playing=false;}
+  else if(e.data===0){player.seekTo(0,true);player.playVideo();}
+  updatePill();
+}
+function onErr(){
+  vi++;
+  if(vi<VIDEOS.length){player.cueVideoById(VIDEOS[vi]);}
+  else{note.textContent='Пісню не вдалося завантажити. Інструкцію можна читати й без неї.';tv.style.visibility='hidden';pill.hidden=true;ready=false;}
+}
+window.onYouTubeIframeAPIReady=function(){
+  player=new YT.Player('ytplayer',{videoId:VIDEOS[0],width:'100%',height:'100%',
+    playerVars:{playsinline:1,rel:0,modestbranding:1},
+    events:{onReady:()=>{ready=true;place();if(mode==='page')pill.hidden=false;},onStateChange:onState,onError:onErr}});
+};
+startBtn.addEventListener('click',()=>{
+  if(!ready||!player){note.textContent='Плеєр ще завантажується, зачекайте секунду.';return;}
+  player.unMute();player.setVolume(100);player.playVideo();
+  clearTimeout(startTimer);
+  startTimer=setTimeout(()=>{if(!playing)note.textContent='Браузер не дав увімкнути звук автоматично — натисніть ▶ прямо на екрані.';},1800);
+});
+skipBtn.addEventListener('click',closeCover);
+cover.addEventListener('keydown',e=>{if(e.key==='Escape')closeCover();});
+pill.addEventListener('click',()=>{if(!player)return;if(playing)player.pauseVideo();else{player.unMute();player.playVideo();}});
+window.addEventListener('resize',place);
+cover.addEventListener('scroll',place);
+window.addEventListener('load',place);
+if('ResizeObserver' in window)new ResizeObserver(place).observe(document.body);
+if(document.fonts)document.fonts.ready.then(place);
+place();startBtn.focus();
+setTimeout(()=>{if(!ready&&mode==='cover')note.textContent='Плеєр не завантажився. Можна читати без звуку.';},9000);
+(function(){const t=document.createElement('script');t.src='https://www.youtube.com/iframe_api';t.async=true;document.head.appendChild(t);})();
 
 const fb=document.getElementById('flush'),fa=document.getElementById('flushAudio'),fn=document.getElementById('flushNote');
 let ft=[];
 fb.addEventListener('click',()=>{
   ft.forEach(clearTimeout);ft=[];
   fa.currentTime=0;
+  if(player&&playing){player.setVolume(20);ducked=true;}
   const p=fa.play();
   fb.disabled=true;fb.textContent='Змиваю…';fn.textContent='';
   ft.push(setTimeout(()=>{fb.textContent='Браво!';},2600));
   if(p&&p.catch)p.catch(()=>{fb.disabled=false;fb.textContent='Змити після приспіву';fn.textContent='Звук не відтворився. Перевірте гучність і спробуйте ще раз.';});
 });
-fa.addEventListener('ended',()=>{fb.disabled=false;fb.textContent='Змити ще раз';});
+fa.addEventListener('ended',()=>{fb.disabled=false;fb.textContent='Змити ще раз';if(ducked&&player){player.setVolume(100);ducked=false;}});
 const btn=document.getElementById('done'),out=document.getElementById('surprise');
 btn.addEventListener('click',()=>{
   out.hidden=false;btn.disabled=true;btn.textContent='Прочитав';
